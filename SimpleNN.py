@@ -1,5 +1,6 @@
 import copy
 from collections import Iterable
+import json_wrapper
 
 __author__ = 'Jian Xun'
 
@@ -23,20 +24,18 @@ class Neural:
         self.__theta = default_weight
         self.__default_weight = default_weight
         for id in ids:
-            self.__inputs[id] = None
             self.__weights[id] = default_weight
 
     def add_link(self, id):
-        self.__inputs[id] = None
         self.__weights[id] = self.__default_weight
 
     def receive(self, inputs):
-        for id in self.__inputs:
+        for id in self.__weights:
             self.__inputs[id] = inputs[id]
 
     def output(self):
         a = self.__theta
-        for id in self.__inputs:
+        for id in self.__weights:
             a += self.__weights[id] * self.__inputs[id]
         self.__output = a if a > 0 else 0
         return self.__output
@@ -52,6 +51,18 @@ class Neural:
         self.__theta += derror
         return propagation
 
+    def get_weights(self):
+        return copy.deepcopy(self.__weights)
+
+    def set_weights(self, weights):
+        self.__weights = copy.deepcopy(weights)
+
+    def get_theta(self):
+        return self.__theta
+
+    def set_theta(self, theta):
+        self.__theta = theta
+
 
 class Configuration:
     __learn_rate = None
@@ -61,13 +72,30 @@ class Configuration:
     # __relations[a] = [b, c] means a receives inputs from b and c
     __relations = None
     __output_nodes = None
+    # stores weights and theta of each internal/output nodes
+    __weights = None
+    __thetas = None
 
-    def __init__(self):
-        self.__learn_rate = 0.01
-        self.__default_weight = 0.5
-        self.__input_nodes = []
-        self.__relations = {}
-        self.__output_nodes = []
+    def __init__(self, path=None):
+        if path is None:
+            self.__learn_rate = 0.01
+            self.__default_weight = 0.5
+            self.__input_nodes = []
+            self.__relations = {}
+            self.__output_nodes = []
+            self.__weights = {}
+            self.__thetas = {}
+        else:
+            file = open(path, 'r')
+            structure = json_wrapper.loads(file.readline(), 'utf-8')
+            file.close()
+            self.__learn_rate = structure['learn_rate']
+            self.__default_weight = structure['default_weight']
+            self.__input_nodes = structure['input_nodes']
+            self.__output_nodes = structure['output_nodes']
+            self.__relations = structure['relations']
+            self.__weights = structure['weights']
+            self.__thetas = structure['thetas']
 
     def set_learn_rate(self, learn_rate):
         self.__learn_rate = learn_rate
@@ -89,15 +117,35 @@ class Configuration:
         if isinstance(ids, str):
             self.__output_nodes.append(ids)
 
+    def add_weight(self, from_id, to_id, weight):
+        if to_id not in self.__weights:
+            self.__weights[to_id] = {}
+        self.__weights[to_id][from_id] = weight
+
+    def add_theta(self, id, theta):
+        self.__thetas[id] = theta
+
     def add_relation(self, from_id, to_id):
-        from_id = str(from_id)
-        to_id = str(to_id)
         if from_id in self.__relations and to_id in self.__relations[from_id]:
             raise LoopException('loop relation found between ' + from_id + ' and ' + to_id)
         if to_id not in self.__relations:
             self.__relations[to_id] = []
         if from_id not in self.__relations[to_id]:
             self.__relations[to_id].append(from_id)
+
+    def dump_to_file(self, path):
+        file = open(path, 'w')
+        structure = {
+            'learn_rate': self.__learn_rate,
+            'default_weight': self.__default_weight,
+            'input_nodes': self.__input_nodes,
+            'output_nodes': self.__output_nodes,
+            'relations': self.__relations,
+            'weights': self.__weights,
+            'thetas': self.__thetas
+        }
+        file.write(json_wrapper.dumps(structure))
+        file.close()
 
     def get_learn_rate(self):
         return self.__learn_rate
@@ -117,6 +165,12 @@ class Configuration:
     def get_relations(self):
         return copy.deepcopy(self.__relations)
 
+    def get_weights(self, id):
+        return None if id not in self.__weights else copy.deepcopy(self.__weights[id])
+
+    def get_theta(self, id):
+        return None if id not in self.__thetas else self.__thetas[id]
+
 
 class Network:
     __nodes = None
@@ -124,8 +178,12 @@ class Network:
     __output_nodes = None
     # stores the order of nodes to calculate result
     __topology = None
+    __learn_rate = None
+    __default_weight = None
 
     def __init__(self, configuration):
+        self.__learn_rate = configuration.get_learn_rate()
+        self.__default_weight = configuration.get_default_weight()
         self.__input_nodes = []
         self.__input_nodes.extend(configuration.get_input_nodes())
         self.__output_nodes = []
@@ -133,8 +191,14 @@ class Network:
         self.__nodes = {}
         relations = configuration.get_relations()
         for id in relations:
-            self.__nodes[id] = Neural(configuration.get_learn_rate(), configuration.get_inputs(id),
-                                      configuration.get_default_weight())
+            self.__nodes[id] = Neural(self.__learn_rate, configuration.get_inputs(id), self.__default_weight)
+            weights = configuration.get_weights(id)
+            if weights is not None:
+                self.__nodes[id].set_weights(weights)
+            theta = configuration.get_theta(id)
+            if theta is not None:
+                self.__nodes[id].set_theta(theta)
+
         self.__topology = []
         temp_output = []
         for id in self.__input_nodes:
@@ -178,6 +242,23 @@ class Network:
             self.__nodes[id].receive(internal_result)
             internal_result[id] = self.__nodes[id].output()
         return internal_result
+
+    def dump(self):
+        conf = Configuration()
+        conf.set_learn_rate(self.__learn_rate)
+        conf.set_default_weight(self.__default_weight)
+        for id in self.__input_nodes:
+            conf.add_input_node(id)
+        for id in self.__output_nodes:
+            conf.add_output_node(id)
+        for id in self.__nodes:
+            neural = self.__nodes[id]
+            weights = neural.get_weights()
+            for fid in weights:
+                conf.add_relation(fid, id)
+                conf.add_weight(fid, id, weights[fid])
+                conf.add_theta(id, neural.get_theta())
+        return conf
 
 
 class LoopException(Exception):

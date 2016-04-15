@@ -21,7 +21,7 @@ Usage:
 First of all, initialize a Configuration.
 Use add_input_node, add_output_node to specify the input/output node ids.
 Use add_relation to build the structure of the network.
-Use set_default_weight, set_learn_rate to set these attributes.
+Use set_default_weight, set_learn_rate to set these attributes. If unset, default weight is 0.5 and default learning rate is 0.01.
 
 After all the configuration set, initialize a Network with this Configuration.
 Use train to train the network. In this function, you should specify what value is got from each input node by a dict, and what value is expected to be given by each output node by another dict.
