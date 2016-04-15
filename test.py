@@ -1,4 +1,5 @@
-from SimpleNNP import Configuration, NetWork
+from SimpleNN import Configuration, Network
+
 
 def test_simple_nnp():
     conf = Configuration()
@@ -14,7 +15,7 @@ def test_simple_nnp():
     conf.add_relation('l13', 'o')
     conf.add_output_node('o')
     # conf.set_learn_rate(0.1)
-    net = NetWork(conf)
+    net = Network(conf)
     # train 'and' operation
     for i in xrange(10000):
         net.train({'x': 1, 'y': 1}, {'o': 1})

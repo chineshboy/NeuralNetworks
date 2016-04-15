@@ -118,7 +118,7 @@ class Configuration:
         return copy.deepcopy(self.__relations)
 
 
-class NetWork:
+class Network:
     __nodes = None
     __input_nodes = None
     __output_nodes = None
@@ -149,6 +149,12 @@ class NetWork:
                         temp_output.append(nid)
 
     def train(self, inputs, expect_outputs):
+        for id in self.__input_nodes:
+            if id not in inputs:
+                raise MissException('input node not found : ' + id)
+        for id in self.__output_nodes:
+            if id not in expect_outputs:
+                raise MissException('output node not found : ' + id)
         self.predict(inputs)
         # then do back propagation
         internal_propagate = {}
@@ -175,6 +181,16 @@ class NetWork:
 
 
 class LoopException(Exception):
+    message = None
+
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return repr(self.message)
+
+
+class MissException(Exception):
     message = None
 
     def __init__(self, message):
