@@ -34,7 +34,7 @@ class Neural:
             self.__inputs[id] = inputs[id]
 
     def output(self):
-        a = self.__theta
+        a = -self.__theta
         for id in self.__weights:
             a += self.__weights[id] * self.__inputs[id]
         self.__output = a if a > 0 else 0
@@ -48,7 +48,7 @@ class Neural:
         for id in self.__inputs:
             propagation[id] = self.__weights[id] * error
             self.__weights[id] += self.__inputs[id] * derror
-        self.__theta += derror
+        self.__theta -= derror
         return propagation
 
     def get_weights(self):
@@ -104,14 +104,14 @@ class Configuration:
         self.__default_weight = weight
 
     def add_input_node(self, ids):
-        if isinstance(ids, Iterable):
+        if isinstance(ids, list):
             for id in ids:
                 self.__input_nodes.append(str(id))
         if isinstance(ids, str):
             self.__input_nodes.append(ids)
 
     def add_output_node(self, ids):
-        if isinstance(ids, Iterable):
+        if isinstance(ids, list):
             for id in ids:
                 self.__output_nodes.append(str(id))
         if isinstance(ids, str):
@@ -146,6 +146,18 @@ class Configuration:
         }
         file.write(json_wrapper.dumps(structure))
         file.close()
+
+    def to_string(self):
+        structure = {
+            'learn_rate': self.__learn_rate,
+            'default_weight': self.__default_weight,
+            'input_nodes': self.__input_nodes,
+            'output_nodes': self.__output_nodes,
+            'relations': self.__relations,
+            'weights': self.__weights,
+            'thetas': self.__thetas
+        }
+        return str(structure)
 
     def get_learn_rate(self):
         return self.__learn_rate
